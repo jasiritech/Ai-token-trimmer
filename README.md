@@ -31,12 +31,12 @@ Measured on a 21-file Python codebase (`argon/*.py` + `tests/*.py`, using the `~
 - **`python repo_map.py` output:** `7,523` chars (~1,881 tokens)
 - **Initial index reduction:** **94.7% smaller** than pasting every `.py` file
 
-You can measure the exact ratio on your own Python repo in PowerShell:
+*Ratio is approximate; exact token counts depend on the tokenizer.*
 
-```powershell
-$full = (Get-Content src\*.py, tests\*.py -Raw | Measure-Object -Character).Characters
-$map  = (python repo_map.py | Out-String).Length
-"Full: $full chars (~$([math]::Round($full/4)) tokens) | Map: $map chars (~$([math]::Round($map/4)) tokens)"
+You can measure the exact ratio on your own Python repo (Windows, macOS, or Linux) with:
+
+```bash
+python repo_map.py --stats
 ```
 
 ---
@@ -47,7 +47,7 @@ $map  = (python repo_map.py | Out-String).Length
 1. Index locally (0 LLM tokens)  ──▶  python repo_map.py
 2. Search callers & imports      ──▶  git grep -n "symbol"
 3. Slice target lines only       ──▶  python repo_map.py --slice file.py 50 110
-4. Patch via minimal diff        ──▶  git diff
+4. Patch via minimal diff        ──▶  git diff  (ask the AI to reply with a unified diff only)
 ```
 
 ---

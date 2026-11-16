@@ -70,6 +70,7 @@ def slice_file(path: Path, start: int, end: int) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Token-saving repo map & file slicer.")
     parser.add_argument("--slice", nargs=3, metavar=("FILE", "START", "END"), help="Print a specific line range.")
+    parser.add_argument("--stats", action="store_true", help="Compare full Python source size vs. repo_map output.")
     args = parser.parse_args()
 
     root = Path.cwd()
@@ -78,9 +79,23 @@ def main() -> None:
         print(slice_file(file_path, int(args.slice[1]), int(args.slice[2])))
         return
 
-    for py_file in iter_python_files(root):
-        for line in summarize_file(py_file, root):
-            print(line)
+    py_files = iter_python_files(root)
+    map_lines: list[str] = []
+    for py_file in py_files:
+        map_lines.extend(summarize_file(py_file, root))
+    map_output = "\n".join(map_lines)
+
+    if args.stats:
+        full_chars = sum(len(p.read_text(encoding="utf-8", errors="replace")) for p in py_files)
+        map_chars = len(map_output)
+        reduction = (1 - (map_chars / full_chars)) * 100 if full_chars else 0.0
+        print(f"Files: {len(py_files)} Python files")
+        print(f"Full source: {full_chars:,} chars (~{round(full_chars / 4):,} tokens)")
+        print(f"Repo map:    {map_chars:,} chars (~{round(map_chars / 4):,} tokens)")
+        print(f"Index size reduction: {reduction:.1f}% (approximate; exact tokens depend on tokenizer)")
+        return
+
+    print(map_output)
 
 
 if __name__ == "__main__":
