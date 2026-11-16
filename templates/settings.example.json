@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(logs/**)",
+      "Read(reports/**)",
+      "Read(evidence/**)",
+      "Read(dist/**)",
+      "Read(node_modules/**)",
+      "Read(**/*.log)",
+      "Read(**/*.lock)"
+    ]
+  }
+}
