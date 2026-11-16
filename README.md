@@ -4,6 +4,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue?style=flat-square)
 ![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 ![Scope](https://img.shields.io/badge/parser-python%20ast-lightgrey?style=flat-square)
 
 ---
@@ -17,19 +18,36 @@ When working with web chats (copy-paste) or unguided prompts, LLMs consume extra
 
 ## 💡 The Solution
 
-`ai-token-trimmer` pairs **classic, zero-cost local tooling** (`ctags`-style indexing, `git grep`, line slicing, and `git diff`) so your machine does the searching for **0 tokens**, and you only share the relevant symbol map and target slices.
+`ai-token-trimmer` pairs **classic local tooling** (`ctags`-style indexing, `git grep`, line slicing, and `git diff`) so your machine does the searching locally (spending **0 LLM tokens**), and you only share the relevant symbol map and target slices.
 
-> **Note on savings:** On a ~35k-token Python codebase, the generated symbol map is ~1.9k tokens (~94% smaller than pasting every file). End-to-end task savings vary by task and tool: biggest when using **web chat (copy-paste)**, and more modest in **agentic CLIs** like Claude Code that already use `grep`/`glob` and prompt caching.
+> **Note on savings:** End-to-end task savings vary by task and tool — biggest when using **web chat (copy-paste)**, and more modest in **agentic CLIs** like Claude Code that already use `grep`/`glob` and prompt caching.
+
+---
+
+## 📊 Reproducible Map-Size Measurement
+
+Measured on a 21-file Python codebase (`argon/*.py` + `tests/*.py`, using the `~4 chars/token` heuristic):
+- **Full source files:** `140,784` chars (~35,196 tokens)
+- **`python repo_map.py` output:** `7,523` chars (~1,881 tokens)
+- **Initial index reduction:** **94.7% smaller** than pasting every `.py` file
+
+You can measure the exact ratio on your own Python repo in PowerShell:
+
+```powershell
+$full = (Get-Content src\*.py, tests\*.py -Raw | Measure-Object -Character).Characters
+$map  = (python repo_map.py | Out-String).Length
+"Full: $full chars (~$([math]::Round($full/4)) tokens) | Map: $map chars (~$([math]::Round($map/4)) tokens)"
+```
 
 ---
 
 ## ⚙️ How It Works
 
 ```text
-1. Index locally (0 tokens)  ──▶  python repo_map.py
-2. Search callers & imports  ──▶  git grep -n "symbol"
-3. Slice target lines only   ──▶  python repo_map.py --slice file.py 50 110
-4. Patch via minimal diff    ──▶  git diff
+1. Index locally (0 LLM tokens)  ──▶  python repo_map.py
+2. Search callers & imports      ──▶  git grep -n "symbol"
+3. Slice target lines only       ──▶  python repo_map.py --slice file.py 50 110
+4. Patch via minimal diff        ──▶  git diff
 ```
 
 ---
@@ -42,6 +60,7 @@ ai-token-trimmer/
 ├── templates/
 │   ├── CLAUDE.md               # Rules instructing Claude Code to locate first & prefer diffs
 │   └── settings.example.json   # Example permissions.deny rules for Claude Code
+├── LICENSE                     # MIT License
 ├── .gitignore
 └── README.md
 ```
@@ -85,13 +104,31 @@ python repo_map.py | clip
 python repo_map.py --slice argon/agent.py 507 575 | clip
 ```
 
+### 5. Claude Code `permissions.deny` Example
+Place this in `.claude/settings.json` (in addition to `.gitignore`) to block heavy non-code directories:
+
+```json
+{
+  "permissions": {
+    "deny": [
+      "Read(logs/**)",
+      "Read(reports/**)",
+      "Read(dist/**)",
+      "Read(node_modules/**)",
+      "Read(**/*.log)",
+      "Read(**/*.lock)"
+    ]
+  }
+}
+```
+
 ---
 
 ## 🛠️ Classic Git & CLI Habits That Save Tokens
 
 | Tool / Command | Purpose | Why It Helps |
 | :--- | :--- | :--- |
-| `git grep -n "func_name"` | Find exact file, imports & callers | **0 tokens** spent searching |
+| `git grep -n "func_name"` | Find exact file, imports & callers | **0 LLM tokens** spent searching |
 | `git diff` / `git diff --stat` | Share only changed lines for review | Avoids re-sending full files |
 | `git log --oneline -n 10` | Compact commit history | Minimal context |
 | `gh pr diff <id>` | Inspect a Pull Request via CLI | Diff only |
@@ -100,9 +137,13 @@ python repo_map.py --slice argon/agent.py 507 575 | clip
 
 ---
 
-## ⚠️ Current Limitations & Best Practices
+## ⚠️ Current Limitations & Roadmap
 
 1. **Python only (for now)** — `repo_map.py` uses Python's built-in `ast` module, so it indexes `.py` files only.
+   - *Roadmap:* Optional `tree-sitter` backend to support JavaScript/TypeScript, Go, Rust, and PHP.
 2. **Don't lose context when slicing** — When sharing a function slice, include the file's top `imports` (e.g., lines `1-30`) or `git grep` callers if the function depends on external types.
-3. **Claude Code ignore rules** — Claude Code follows `.gitignore` and `permissions.deny` in `.claude/settings.json` (not `.claudeignore`).
-4. **Commit & reset chats** — After finishing a task, `git commit` and start a fresh chat to keep context focused.
+3. **Commit & reset chats** — After finishing a task, `git commit` and start a fresh chat to keep context focused.
+
+## 📄 License
+
+MIT — see [LICENSE](LICENSE).
